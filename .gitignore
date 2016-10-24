@@ -1,0 +1,9 @@
+*
+
+!.gitignore
+!.project
+!.classpath
+!*.java
+!*.prefs
+
+!*/
