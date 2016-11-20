@@ -18,8 +18,10 @@ public class SwagmanAI extends CKPlayer {
 	}
 	
 	// True if player is first player false otherwise
-	Boolean p;
-
+	private Boolean p;
+	// Debugging variable that counts the number of evaluations to test for pruning
+	private int evaluations = 0;
+	
 	public SwagmanAI(byte player, BoardModel state) {
 		super(player, state);
 		teamName = "Swagman";
@@ -29,13 +31,15 @@ public class SwagmanAI extends CKPlayer {
 	@Override
 	public Point getMove(BoardModel state) 
 	{
+		evaluations = 0;
 		//System.out.println( scoreBoard(state, p) );
-		Point poi = recurseBestMove( new GameNode(state), 3, true );
+		Point poi = recurseBestMove( new GameNode(state), 4, true, Integer.MIN_VALUE, Integer.MAX_VALUE );
 		//System.out.println( scoreBoard(state.placePiece(poi, player), p ) );
+		System.out.println(evaluations + " states were evaluated.");
 		return poi;
 	}
 	
-	private Point recurseBestMove( GameNode node, int layer, boolean playing )
+	private Point recurseBestMove( GameNode node, int layer, boolean playing, int alpha, int beta )
 	{
 		Point none = new Point( -1, -1 );
 		Point move = new Point();
@@ -56,12 +60,13 @@ public class SwagmanAI extends CKPlayer {
 		// If we hit the end layer calculate the position current positions value
 		else if( layer == 0 )
 		{
+			evaluations++;
 			node.score = scoreBoard( node.state, p );
 		}
 		else if( playing )
 		{
 			bestScore = Integer.MIN_VALUE;
-			for( int i = 0; i < node.state.getWidth(); i++ )
+			outerMax: for( int i = 0; i < node.state.getWidth(); i++ )
 			{
 				// make sure that it only checks the top row if gravity is enabled
 				for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
@@ -73,12 +78,20 @@ public class SwagmanAI extends CKPlayer {
 						nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
 						
 						// Recurse from the new move
-						recurseBestMove( nodePrime, layer-1, false );
+						recurseBestMove( nodePrime, layer-1, false, alpha, beta );
 						
 						if( nodePrime.score > bestScore )
 						{
 							move = new Point(i,j);
 							bestScore = nodePrime.score;
+							
+							if( bestScore > alpha )
+								alpha = bestScore;
+						}
+						
+						if( beta <= alpha )
+						{
+							break outerMax;
 						}
 					}
 				}
@@ -90,7 +103,7 @@ public class SwagmanAI extends CKPlayer {
 		else
 		{
 			bestScore = Integer.MAX_VALUE;
-			for( int i = 0; i < node.state.getWidth(); i++ )
+			outerMin: for( int i = 0; i < node.state.getWidth(); i++ )
 			{
 				// make sure that it only checks the top row if gravity is enabled
 				for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
@@ -102,12 +115,20 @@ public class SwagmanAI extends CKPlayer {
 						nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
 						
 						// Recurse from the new move
-						recurseBestMove( nodePrime, layer-1, false );
+						recurseBestMove( nodePrime, layer-1, true, alpha, beta );
 						
 						if( nodePrime.score < bestScore )
 						{
 							move = new Point(i,j);
 							bestScore = nodePrime.score;
+							
+							if( bestScore < beta )
+								beta = bestScore;
+						}
+						
+						if( beta <= alpha )
+						{
+							break outerMin;
 						}
 					}
 				}
@@ -201,15 +222,15 @@ public class SwagmanAI extends CKPlayer {
 		return score;
 	}
 	
-//	public static void main( String[] args )
-//	{
-//		try {
-//			args = new String[]{"C:\\Users\\Masa\\Google Drive\\Fall 2016\\ICS 171\\Project\\ConnectKEclipse\\bin\\SwagmanAI.class"};
-//			ConnectKGUI.main(args);
-//		} catch (Exception e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//	}
+	public static void main( String[] args )
+	{
+		try {
+			args = new String[]{"C:\\Users\\Masa\\Google Drive\\Fall 2016\\ICS 171\\Project\\ConnectKEclipse\\bin\\SwagmanAI.class"};
+			ConnectKGUI.main(args);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	
 }
