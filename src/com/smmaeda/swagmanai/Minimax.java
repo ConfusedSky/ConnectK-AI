@@ -39,7 +39,6 @@ public class Minimax {
 		evaluations = 0;
 		deadlineCutoff = cutoff;
 		//System.out.println( scoreBoard(state, p) );
-		System.out.println(deadlineCutoff);
 		
 		Point poi = recurseBestMove( new GameNode(state), depth, true, Integer.MIN_VALUE, Integer.MAX_VALUE );
 		//System.out.println( scoreBoard(state.placePiece(poi, player), p ) );
@@ -151,6 +150,43 @@ public class Minimax {
 		}
 		
 		return move;
+	}
+	
+	private Point MinimaxAlgorithm()
+	{
+		int bestScore = Integer.MIN_VALUE;
+		outerMax: for( int i = 0; i < node.state.getWidth(); i++ )
+		{
+			// make sure that it only checks the top row if gravity is enabled
+			for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
+			{
+				if( node.state.getSpace(i, j) == 0 )
+				{
+					// Generate a move
+					Byte token = (byte)(p?1:2);
+					nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
+					
+					// Recurse from the new move
+					recurseBestMove( nodePrime, layer-1, false, alpha, beta );
+					
+					if( nodePrime.score > bestScore )
+					{
+						move = new Point(i,j);
+						bestScore = nodePrime.score;
+						
+						if( bestScore > alpha )
+							alpha = bestScore;
+					}
+					
+					if( beta <= alpha )
+					{
+						break outerMax;
+					}
+				}
+			}
+			
+			node.score = bestScore;
+		}
 	}
 	
 	
