@@ -2,6 +2,7 @@ package com.smmaeda.swagmanai;
 
 import java.awt.Point;
 import java.time.Instant;
+import java.util.ArrayList;
 
 import connectK.BoardModel;
 
@@ -70,91 +71,26 @@ public class Minimax {
 			node.score = ((playing)?(Integer.MAX_VALUE-2):Integer.MIN_VALUE+2);
 		}
 		// If we hit the end layer calculate the position current positions value
-		else if( layer == 0 )
+		else if( !node.state.hasMovesLeft() || layer == 0 )
 		{
 			evaluations++;
 			node.score = scoreBoard( node.state, p );
 		}
-		else if( playing )
-		{
-			bestScore = Integer.MIN_VALUE;
-			outerMax: for( int i = 0; i < node.state.getWidth(); i++ )
-			{
-				// make sure that it only checks the top row if gravity is enabled
-				for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
-				{
-					if( node.state.getSpace(i, j) == 0 )
-					{
-						// Generate a move
-						Byte token = (byte)(p?1:2);
-						nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
-						
-						// Recurse from the new move
-						recurseBestMove( nodePrime, layer-1, false, alpha, beta );
-						
-						if( nodePrime.score > bestScore )
-						{
-							move = new Point(i,j);
-							bestScore = nodePrime.score;
-							
-							if( bestScore > alpha )
-								alpha = bestScore;
-						}
-						
-						if( beta <= alpha )
-						{
-							break outerMax;
-						}
-					}
-				}
-				
-				node.score = bestScore;
-			}
-		}
 		// else not playing
 		else
 		{
-			bestScore = Integer.MAX_VALUE;
-			outerMin: for( int i = 0; i < node.state.getWidth(); i++ )
-			{
-				// make sure that it only checks the top row if gravity is enabled
-				for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
-				{
-					if( node.state.getSpace(i, j) == 0 )
-					{
-						// Generate a move
-						Byte token = (byte)(!p?1:2);
-						nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
-						
-						// Recurse from the new move
-						recurseBestMove( nodePrime, layer-1, true, alpha, beta );
-						
-						if( nodePrime.score < bestScore )
-						{
-							move = new Point(i,j);
-							bestScore = nodePrime.score;
-							
-							if( bestScore < beta )
-								beta = bestScore;
-						}
-						
-						if( beta <= alpha )
-						{
-							break outerMin;
-						}
-					}
-				}
-				
-				node.score = bestScore;
-			}
+			move = MinimaxAlgorithm( node, layer, playing, alpha, beta );
 		}
 		
 		return move;
 	}
 	
-	private Point MinimaxAlgorithm()
+	private Point MinimaxAlgorithm( GameNode node, int layer, boolean playing, int alpha, int beta ) throws DeadlinePassedException
 	{
-		int bestScore = Integer.MIN_VALUE;
+		int bestScore = (playing)?Integer.MIN_VALUE:Integer.MAX_VALUE;
+		Point move = new Point();
+		GameNode nodePrime;
+		
 		outerMax: for( int i = 0; i < node.state.getWidth(); i++ )
 		{
 			// make sure that it only checks the top row if gravity is enabled
@@ -163,19 +99,25 @@ public class Minimax {
 				if( node.state.getSpace(i, j) == 0 )
 				{
 					// Generate a move
-					Byte token = (byte)(p?1:2);
+					Byte token = (byte)(!(playing ^ p)?1:2);
 					nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
 					
 					// Recurse from the new move
-					recurseBestMove( nodePrime, layer-1, false, alpha, beta );
+					recurseBestMove( nodePrime, layer-1, !playing, alpha, beta );
 					
-					if( nodePrime.score > bestScore )
+					// Multiplying both sides of an equation by -1 flips the sign
+					int multiplier = (playing)?1:-1;
+					
+					if( nodePrime.score*multiplier > bestScore*multiplier )
 					{
 						move = new Point(i,j);
 						bestScore = nodePrime.score;
 						
-						if( bestScore > alpha )
-							alpha = bestScore;
+						if( bestScore*multiplier > ((playing)?alpha:beta)*multiplier )
+							if(playing)
+								alpha = bestScore;
+							else
+								beta = bestScore;
 					}
 					
 					if( beta <= alpha )
@@ -187,6 +129,34 @@ public class Minimax {
 			
 			node.score = bestScore;
 		}
+		
+		return move;
+	}
+	
+	private Point[] findOpenPoints( BoardModel state )
+	{
+		ArrayList<Point> moves = new ArrayList<Point>();
+		if( state.gravityEnabled() )
+		{
+			for( int i = 0; i < state.getWidth(); i++ )
+			{
+				if( state.getSpace(i, state.getHeight()-1 ) == 0 )
+					moves.add( new Point( i, state.getHeight()-1 ) );
+			}
+		}
+		else
+		{
+			for( int i = 0; i < state.getWidth(); i++ )
+			{
+				for( int j = 0; j < state.getHeight(); j++ )
+				{
+					if( state.getSpace(i, j) == 0 )
+						moves.add( new Point( i, j ) );
+				}
+			}
+		}
+		
+		return moves.toArray(new Point[moves.size()]);
 	}
 	
 	
