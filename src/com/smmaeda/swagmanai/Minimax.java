@@ -3,6 +3,9 @@ package com.smmaeda.swagmanai;
 import java.awt.Point;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Hashtable;
 
 import connectK.BoardModel;
 
@@ -20,6 +23,7 @@ public class Minimax {
 	
 	public Minimax( byte player )
 	{
+		boardScores = new Hashtable<BoardModel, Integer>();
 		p = player == 1;
 	}
 	
@@ -34,6 +38,8 @@ public class Minimax {
 	private int evaluations = 0;
 	// Used for deadline
 	Instant deadlineCutoff;
+	// Calculated boardstates
+	private Hashtable<BoardModel, Integer> boardScores;
 	
 	public Point getMove( BoardModel state, int depth, Instant cutoff ) throws DeadlinePassedException
 	{
@@ -51,8 +57,7 @@ public class Minimax {
 	{
 		Point none = new Point( -1, -1 );
 		Point move = new Point();
-		int bestScore;
-		GameNode nodePrime;
+		
 		// check for deadline
 		if( Instant.now().compareTo(deadlineCutoff) >= 0 )
 		{
@@ -64,16 +69,9 @@ public class Minimax {
 		{
 			node.score = ((playing)?(Integer.MAX_VALUE-1):Integer.MIN_VALUE+1);
 		}
-		// If the player that isn't playing can block a win
-		else if( !(move = CanWin( node.state, (playing ^ p) )).equals(none ) )
-		{
-			// blocking a win is second only to winning
-			node.score = ((playing)?(Integer.MAX_VALUE-2):Integer.MIN_VALUE+2);
-		}
 		// If we hit the end layer calculate the position current positions value
 		else if( !node.state.hasMovesLeft() || layer == 0 )
 		{
-			evaluations++;
 			node.score = scoreBoard( node.state, p );
 		}
 		// else not playing
@@ -90,49 +88,81 @@ public class Minimax {
 		int bestScore = (playing)?Integer.MIN_VALUE:Integer.MAX_VALUE;
 		Point move = new Point();
 		GameNode nodePrime;
+		Byte token = (byte)(!(playing ^ p)?1:2);
 		
-		outerMax: for( int i = 0; i < node.state.getWidth(); i++ )
+		Point[] points = findOpenPoints( node.state );
+		if(points.length > 1 ) sortByHeuristic( node.state, token, points );
+		
+		for( Point point : points )
 		{
-			// make sure that it only checks the top row if gravity is enabled
-			for( int j = node.state.getHeight()-1; (!node.state.gravityEnabled() || j == node.state.getHeight()-1) && j >= 0; j-- )
+			// Generate a move
+			nodePrime = new GameNode( node.state.placePiece(point, token) );
+					
+			// Recurse from the new move
+			recurseBestMove( nodePrime, layer-1, !playing, alpha, beta );
+					
+			if( playing )
 			{
-				if( node.state.getSpace(i, j) == 0 )
+				if( nodePrime.score > bestScore )
 				{
-					// Generate a move
-					Byte token = (byte)(!(playing ^ p)?1:2);
-					nodePrime = new GameNode( node.state.placePiece(new Point(i,j), token) );
+					move = point;
+					bestScore = nodePrime.score;
 					
-					// Recurse from the new move
-					recurseBestMove( nodePrime, layer-1, !playing, alpha, beta );
-					
-					// Multiplying both sides of an equation by -1 flips the sign
-					int multiplier = (playing)?1:-1;
-					
-					if( nodePrime.score*multiplier > bestScore*multiplier )
-					{
-						move = new Point(i,j);
-						bestScore = nodePrime.score;
-						
-						if( bestScore*multiplier > ((playing)?alpha:beta)*multiplier )
-							if(playing)
-								alpha = bestScore;
-							else
-								beta = bestScore;
-					}
-					
-					if( beta <= alpha )
-					{
-						break outerMax;
-					}
+					if( bestScore > alpha )
+						alpha = bestScore;
 				}
 			}
-			
-			node.score = bestScore;
+			else
+			{
+				if( nodePrime.score < bestScore )
+				{
+					move = point;
+					bestScore = nodePrime.score;
+					
+					if( bestScore < beta )
+						beta = bestScore;
+				}
+			}
+					
+			if( beta <= alpha )
+			{
+				break;
+			}
 		}
+			
+		node.score = bestScore;
 		
 		return move;
 	}
 	
+	private void sortByHeuristic( BoardModel state, byte player, Point[] points) 
+	{
+		Point[] originalValues = Arrays.copyOf(points, points.length);
+		// uses x as the score and y as the original index
+		Point values[] = new Point[points.length];
+		for( int i = 0; i < points.length; i++ )
+		{
+			values[i] = new Point();
+			values[i].x = scoreBoard( state.placePiece(points[i], player), p );
+			values[i].y = i;
+		}
+		
+		Arrays.sort( values, 
+			new Comparator<Point>()
+			{
+				public int compare( Point p1, Point p2 )
+				{
+					return Integer.compare(p2.x,p1.x);
+				}
+			}
+		);
+		
+		for( int i = 0; i < points.length; i++ )
+		{
+			points[i] = originalValues[values[i].y];
+		}
+	}
+
 	private Point[] findOpenPoints( BoardModel state )
 	{
 		ArrayList<Point> moves = new ArrayList<Point>();
@@ -185,10 +215,16 @@ public class Minimax {
 		return new Point(-1,-1);
 	}
 	
-	public static int scoreBoard(BoardModel state, Boolean player)
-	{
+	public int scoreBoard(BoardModel state, Boolean player)
+	{	
 		// Determine actual score
-		int score = 0;
+		Integer score = boardScores.get(state);
+		if( score == null )
+			score = 0;
+		else
+			return score;
+		
+		evaluations++;
 		
 		int[][] limits = 
 		{
@@ -232,6 +268,8 @@ public class Minimax {
 				}
 			}
 		}
+		
+		boardScores.put(state, score);
 		
 		return score;
 	}

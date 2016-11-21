@@ -30,31 +30,17 @@ public class SwagmanAI extends CKPlayer {
 	public Point getMove(BoardModel state, int deadline) {
 		minimax.reset();
 		
-		List<Point> previousBestMoves = new ArrayList<Point>();
 		Point bestMove = new Point( 0, 0 );
 		int depth = 1;
 		Instant cutoff = Instant.now().plusMillis(deadline).minusMillis(100);
 		
-		while( true )
+		while( depth < 100 )
 		{
 			try
 			{
 				// Set cutoff to now + deadline - 100 to provide a safe buffer
 				bestMove = minimax.getMove(state, depth, cutoff );
-				System.out.println(bestMove);
-				// Check the past 3 depths for the same value
-				// if they are the same break
-				int size = previousBestMoves.size();
-				if( size >= 3 && 
-					previousBestMoves.get(size-1).equals(bestMove) &&
-					previousBestMoves.get(size-2).equals(bestMove) &&
-					previousBestMoves.get(size-3).equals(bestMove)
-				)
-				{
-					System.out.println("Too many repeats");
-					break;		
-				}
-				previousBestMoves.add(bestMove);
+				System.out.println("Best move at depth " + depth + ": " + bestMove);
 			}
 			catch( DeadlinePassedException c )
 			{
