@@ -1,7 +1,5 @@
 import java.awt.Point;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.smmaeda.swagmanai.DeadlinePassedException;
 import com.smmaeda.swagmanai.Minimax;
@@ -32,7 +30,7 @@ public class SwagmanAI extends CKPlayer {
 		
 		Point bestMove = new Point( 0, 0 );
 		int depth = 1;
-		Instant cutoff = Instant.now().plusMillis(deadline).minusMillis(100);
+		Instant cutoff = Instant.now().plusMillis(deadline).minusMillis(250);
 		
 		while( depth < 100 )
 		{
@@ -55,7 +53,7 @@ public class SwagmanAI extends CKPlayer {
 	public static void main( String[] args )
 	{
 		try {
-			args = new String[]{"C:\\Users\\Masa\\Google Drive\\Fall 2016\\ICS 171\\Project\\ConnectKEclipse\\bin\\SwagmanAI.class"};
+			args = new String[]{"C:\\Users\\mmaeda\\Google Drive\\Fall 2016\\ICS 171\\Project\\ConnectKEclipse\\bin\\SwagmanAI.class"};
 			ConnectKGUI.main(args);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
