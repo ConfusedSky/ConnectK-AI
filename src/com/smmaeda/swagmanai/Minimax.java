@@ -67,7 +67,7 @@ public class Minimax {
 		// If the playing player can win
 		if( !(move = CanWin( node.state, !(playing ^ p) )).equals(none)  )
 		{
-			node.score = ((playing)?(Integer.MAX_VALUE-1):Integer.MIN_VALUE+1);
+			node.score = ((playing)?(Integer.MAX_VALUE-2):Integer.MIN_VALUE+2);
 		}
 		// If we hit the end layer calculate the position current positions value
 		else if( !node.state.hasMovesLeft() || layer == 0 )
@@ -219,57 +219,125 @@ public class Minimax {
 	{	
 		// Determine actual score
 		Integer score = boardScores.get(state);
-		if( score == null )
-			score = 0;
-		else
+		if( score != null )
 			return score;
 		
 		evaluations++;
 		
-		int[][] limits = 
-		{
-			// i lower, i upper, j lower, j upper, k multiplier for i, k multiplier for j
-			{ 0, state.getWidth(), 0, state.getHeight() - state.getkLength() + 1,  0, 1 }, // vertical
-			{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight(), 1, 0 }, // horizontal
-			{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight() - state.getkLength() + 1, 1, 1 }, // upright
-			{ 0, state.getWidth() - state.getkLength() + 1, state.getkLength() - 1, state.getHeight(), 1, -1 } // downright
-		};
+		if( !state.gravityEnabled() )
+			score = simpleScore(state, player);
+		else
+			score = complexScore(state, player);
 		
-		byte mytoken = player?(byte)1:(byte)2;
+		boardScores.put(state, score);
+		
+		return score;
+	}
+	
+	private int simpleScore( BoardModel state, Boolean player )
+	{
+		int[][] limits = {
+				// i lower, i upper, j lower, j upper, k multiplier for i, k
+				// multiplier for j
+				{ 0, state.getWidth(), 0, state.getHeight() - state.getkLength() + 1, 0, 1 }, // vertical
+				{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight(), 1, 0 }, // horizontal
+				{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight() - state.getkLength() + 1, 1, 1 }, // upright
+				{ 0, state.getWidth() - state.getkLength() + 1, state.getkLength() - 1, state.getHeight(), 1, -1 } // downright
+		};
+		int score = 0;
+
+		byte mytoken = player ? (byte) 1 : (byte) 2;
 		byte value;
 		byte token;
-		
+
 		int i, j, k, l;
-		for( l = 0; l < 4; l++ )
-		{
-			for( i = limits[l][0]; i < limits[l][1]; i++ )
+		for (l = 0; l < 4; l++) {
+			for (i = limits[l][0]; i < limits[l][1]; i++) 
 			{
-				for( j = limits[l][2]; j < limits[l][3]; j++ )
+				for (j = limits[l][2]; j < limits[l][3]; j++) 
 				{
-					token = (byte)0;
-					for( k = 0; k < state.getkLength(); k++ )
+					token = (byte) 0;
+					for (k = 0; k < state.getkLength(); k++) 
 					{
-						if( (value = state.getSpace(i+k*limits[l][4],j+k*limits[l][5])) != token )
+						if ((value = state.getSpace(i + k * limits[l][4], j + k * limits[l][5])) != token) 
 						{
-							if( token == (byte) 0 )
+							if (token == (byte) 0) 
 							{
 								token = value;
-							}
-							else if( value != 0 )
+							} else if (value != 0) 
 							{
 								break;
 							}
 						}
 					}
-					if( k == state.getkLength() && token != (byte)0 )
+					if (k == state.getkLength() && token != (byte) 0) 
 					{
-						score += (mytoken == token)?(1):(-1);
+						score += (mytoken == token) ? (1) : (-1);
 					}
 				}
 			}
 		}
 		
-		boardScores.put(state, score);
+		return score;
+	}
+	
+	private int complexScore( BoardModel state, Boolean player )
+	{
+		final int WEIGHT = 7;
+		int[][] limits = {
+				// i lower, i upper, j lower, j upper, k multiplier for i, k
+				// multiplier for j
+				{ 0, state.getWidth(), 0, state.getHeight() - state.getkLength() + 1, 0, 1 }, // vertical
+				{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight(), 1, 0 }, // horizontal
+				{ 0, state.getWidth() - state.getkLength() + 1, 0, state.getHeight() - state.getkLength() + 1, 1, 1 }, // upright
+				{ 0, state.getWidth() - state.getkLength() + 1, state.getkLength() - 1, state.getHeight(), 1, -1 } // downright
+		};
+		int score = 0;
+
+		byte mytoken = player ? (byte) 1 : (byte) 2;
+		byte value;
+		byte token;
+		int x = 0;
+
+		int i, j, k, l;
+		for (l = 0; l < 4; l++) {
+			for (i = limits[l][0]; i < limits[l][1]; i++) 
+			{
+				for (j = limits[l][2]; j < limits[l][3]; j++) 
+				{
+					token = (byte) 0;
+					for (k = 0; k < state.getkLength(); k++) 
+					{
+						if ((value = state.getSpace(i + k * limits[l][4], j + k * limits[l][5])) != token) 
+						{
+							// If token hasnt been set
+							if (token == (byte) 0) 
+							{
+								token = value;
+								// Set x = 1 for us -1 for them
+								x = (mytoken == token) ? (1) : (-1);
+							}
+							// If is is not our token
+							else if (value != 0) 
+							{
+								break;
+							}
+						}
+						// Else it is token
+						else
+						{
+							// The more items in a line the better
+							x = x*WEIGHT;
+						}
+					}
+					if (k == state.getkLength() && token != (byte) 0) 
+					{
+						score += x;
+						x = 0;
+					}
+				}
+			}
+		}
 		
 		return score;
 	}
